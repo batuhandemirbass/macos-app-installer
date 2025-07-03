@@ -25,7 +25,7 @@ echo "🚀 Uygulamalar kuruluyor..."
 for app in "${apps[@]}"
 do
   echo "➤ Kuruluyor: $app"
-  brew install --cask "$app"
+  brew install --force "$app"
 done
 
 echo "🎉 Tüm uygulamalar başarıyla kuruldu."
