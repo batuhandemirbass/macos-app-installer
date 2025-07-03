@@ -1,7 +1,6 @@
 #!/bin/bash
 
 echo "🔍 Homebrew kontrol ediliyor..."
-
 if ! command -v brew &> /dev/null
 then
     echo "📦 Homebrew yüklü değil. Yükleniyor..."
@@ -10,8 +9,8 @@ else
     echo "✅ Homebrew zaten yüklü."
 fi
 
-echo "➡️ Tap ekleniyor: homebrew/cask"
-brew tap homebrew/cask
+echo "🔄 Gerekirse tap yapılıyor..."
+brew tap | grep homebrew/cask || brew tap homebrew/cask
 
 apps=(
   slack
@@ -25,7 +24,7 @@ echo "🚀 Uygulamalar kuruluyor..."
 for app in "${apps[@]}"
 do
   echo "➤ Kuruluyor: $app"
-  brew install --cask "$app"
+  brew install --force "$app" 2>/dev/null
 done
 
 echo "🎉 Tüm uygulamalar başarıyla kuruldu."
