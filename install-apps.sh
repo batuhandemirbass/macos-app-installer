@@ -1,17 +1,14 @@
 #!/bin/bash
 
-echo "🔍 Homebrew kontrol ediliyor..."
+echo "🔍 Checking for Homebrew..."
 
 if ! command -v brew &> /dev/null
 then
-    echo "📦 Homebrew yüklü değil. Yükleniyor..."
+    echo "📦 Homebrew is not installed. Installing now..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 else
-    echo "✅ Homebrew zaten yüklü."
+    echo "✅ Homebrew is already installed."
 fi
-
-echo "➡️ Tap ekleniyor: homebrew/cask"
-brew tap homebrew/cask
 
 apps=(
   slack
@@ -20,11 +17,11 @@ apps=(
   pritunl
 )
 
-echo "🚀 Uygulamalar kuruluyor..."
+echo "🚀 Installing applications..."
 for app in "${apps[@]}"
 do
-  echo "➤ Kuruluyor: $app"
-  brew install --force "$app"
+  echo "➤ Installing: $app"
+  brew install --cask "$app"
 done
 
-echo "🎉 Tüm uygulamalar başarıyla kuruldu."
+echo "🎉 All applications have been installed successfully."
