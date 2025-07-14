@@ -18,7 +18,6 @@ apps=(
   asana
   google-chrome
   pritunl
-  microsoft-office
 )
 
 echo "🚀 Uygulamalar kuruluyor..."
