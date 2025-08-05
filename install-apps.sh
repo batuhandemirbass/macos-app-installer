@@ -1,255 +1,217 @@
 #!/bin/bash
 
-# macOS Otomatik Uygulama Kurulum Betiği
-# Bu betik Homebrew kullanarak Asana, Slack, Pritunl ve Google Chrome'u kurar
+# macOS Automatic App Installer Script
+# This script uses Homebrew to install Asana, Slack, Pritunl and Google Chrome
 
-# Renkli çıktı için kodlar
+# Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Logo ve başlık
+# Logo and title
 echo -e "${BLUE}"
 echo "================================================"
-echo "    macOS Otomatik Uygulama Kurulum Betiği"
+echo "    macOS Automatic App Installer Script"
 echo "================================================"
 echo -e "${NC}"
 
-# Hata durumunda betiği durdur
+# Stop script on error
 set -e
 
-# Log fonksiyonu
+# Log functions
 log() {
     echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"
 }
 
 error() {
-    echo -e "${RED}[HATA] $1${NC}"
+    echo -e "${RED}[ERROR] $1${NC}"
 }
 
 warning() {
-    echo -e "${YELLOW}[UYARI] $1${NC}"
+    echo -e "${YELLOW}[WARNING] $1${NC}"
 }
 
 info() {
-    echo -e "${BLUE}[BİLGİ] $1${NC}"
+    echo -e "${BLUE}[INFO] $1${NC}"
 }
 
-# DNS ve bağlantı kontrolü
+# Connectivity check
 check_connectivity() {
-    log "İnternet bağlantısı kontrol ediliyor..."
+    log "Checking internet connection..."
     
-    # DNS sunucularını test et
-    local dns_servers=("8.8.8.8" "1.1.1.1" "208.67.222.222")
-    local working_dns=""
-    
-    for dns in "${dns_servers[@]}"; do
-        if ping -c 1 -W 5000 "$dns" &> /dev/null; then
-            working_dns="$dns"
-            log "DNS sunucusu $dns çalışıyor ✓"
-            break
-        fi
-    done
-    
-    if [[ -z "$working_dns" ]]; then
-        error "İnternet bağlantısı bulunamadı!"
+    # Test basic internet connectivity
+    if ! ping -c 1 -W 5000 8.8.8.8 &> /dev/null; then
+        error "No internet connection found!"
         exit 1
     fi
     
-    # Homebrew API erişimini test et
-    info "Homebrew API erişimi test ediliyor..."
+    # Test Homebrew API access
+    info "Testing Homebrew API access..."
     if ! curl -Is --connect-timeout 15 --max-time 30 https://formulae.brew.sh &> /dev/null; then
-        warning "formulae.brew.sh'a erişim sorunu tespit edildi!"
+        warning "Access issue detected with formulae.brew.sh!"
+        warning "Please check the following:"
+        echo "  • Check your VPN connection"
+        echo "  • Check your firewall settings"
+        echo "  • Try changing DNS settings manually"
         
-        # DNS ayarlarını kaydet
-        local current_dns=$(networksetup -getdnsservers Wi-Fi 2>/dev/null | head -1)
-        info "Mevcut DNS: $current_dns"
-        
-        # DNS ayarlarını geçici olarak değiştir
-        info "DNS ayarları Google DNS'e çevriliyor..."
-        sudo networksetup -setdnsservers Wi-Fi 8.8.8.8 1.1.1.1
-        
-        # DNS cache'i temizle
-        sudo dscacheutil -flushcache
-        sudo killall -HUP mDNSResponder
-        
-        # 10 saniye bekle
-        info "DNS değişikliği için bekleniyor..."
-        sleep 10
-        
-        # Tekrar test et
-        if ! curl -Is --connect-timeout 15 --max-time 30 https://formulae.brew.sh &> /dev/null; then
-            warning "Hala erişim sorunu var, alternatif DNS denenecek..."
-            sudo networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1
-            sudo dscacheutil -flushcache
-            sleep 5
-            
-            if ! curl -Is --connect-timeout 15 --max-time 30 https://formulae.brew.sh &> /dev/null; then
-                error "Homebrew API'sine erişim sağlanamadı!"
-                error "Lütfen manuel olarak aşağıdaki adımları deneyin:"
-                echo "1. VPN bağlantınızı kontrol edin"
-                echo "2. Güvenlik duvarı ayarlarınızı kontrol edin"
-                echo "3. İnternet servis sağlayıcınızla iletişime geçin"
-                exit 1
-            fi
-        fi
-    fi
-    
-    log "Homebrew API erişimi başarılı ✓"
-}
-
-# Homebrew'in çalışma durumunu kontrol et
-check_homebrew_health() {
-    log "Homebrew sağlık kontrolü yapılıyor..."
-    
-    if command -v brew &> /dev/null; then
-        # Homebrew doctor çalıştır
-        info "Homebrew doctor çalıştırılıyor..."
-        brew doctor || warning "Homebrew doctor bazı uyarılar verdi, ancak devam ediliyor..."
-        
-        # Homebrew config kontrol et
-        info "Homebrew yapılandırması kontrol ediliyor..."
-        brew config > /dev/null 2>&1 || warning "Homebrew config kontrolü başarısız"
-        
-        log "Homebrew sağlık kontrolü tamamlandı ✓"
+        info "Continuing with installation, some operations may fail..."
+    else
+        log "Homebrew API access successful ✓"
     fi
 }
 
-# Homebrew kurulu mu kontrol et
+# Check if Homebrew is installed
 check_homebrew() {
-    log "Homebrew kontrolü yapılıyor..."
+    log "Checking for Homebrew..."
     
     if ! command -v brew &> /dev/null; then
-        warning "Homebrew bulunamadı. Kuruluyor..."
+        warning "Homebrew not found. Installing..."
         
-        # Homebrew kurulumu (retry mekanizması ile)
+        # Install Homebrew (with retry mechanism)
         local max_attempts=3
         local attempt=1
         
         while [[ $attempt -le $max_attempts ]]; do
-            info "Homebrew kurulum denemesi $attempt/$max_attempts"
+            info "Homebrew installation attempt $attempt/$max_attempts"
             
             if /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
                 break
             else
                 if [[ $attempt -eq $max_attempts ]]; then
-                    error "Homebrew kurulumu $max_attempts denemeden sonra başarısız oldu!"
+                    error "Homebrew installation failed after $max_attempts attempts!"
                     exit 1
                 fi
-                warning "Kurulum başarısız, 10 saniye sonra tekrar denenecek..."
+                warning "Installation failed, retrying in 10 seconds..."
                 sleep 10
                 ((attempt++))
             fi
         done
         
-        # PATH'e ekle (Apple Silicon Mac'ler için)
+        # Add to PATH (for Apple Silicon Macs)
         if [[ $(uname -m) == "arm64" ]]; then
             echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
             eval "$(/opt/homebrew/bin/brew shellenv)"
         else
-            # Intel Mac'ler için
+            # For Intel Macs
             echo 'eval "$(/usr/local/bin/brew shellenv)"' >> ~/.zprofile
             eval "$(/usr/local/bin/brew shellenv)"
         fi
         
-        log "Homebrew başarıyla kuruldu!"
+        log "Homebrew successfully installed!"
     else
-        log "Homebrew zaten kurulu ✓"
+        log "Homebrew already installed ✓"
     fi
 }
 
-# Homebrew'i güncelle
-update_homebrew() {
-    log "Homebrew güncelleniyor..."
+# Check Homebrew health
+check_homebrew_health() {
+    log "Checking Homebrew health..."
     
-    # Önce tap'ları güncelle
-    info "Homebrew taps güncelleniyor..."
-    brew tap --repair || warning "Tap repair başarısız oldu"
+    if command -v brew &> /dev/null; then
+        # Run Homebrew doctor
+        info "Running Homebrew doctor..."
+        brew doctor || warning "Homebrew doctor gave some warnings, but continuing..."
+        
+        # Check Homebrew config
+        info "Checking Homebrew configuration..."
+        brew config > /dev/null 2>&1 || warning "Homebrew config check failed"
+        
+        log "Homebrew health check completed ✓"
+    fi
+}
+
+# Update Homebrew
+update_homebrew() {
+    log "Updating Homebrew..."
+    
+    # First update taps
+    info "Updating Homebrew taps..."
+    brew tap --repair || warning "Tap repair failed"
     
     local max_attempts=3
     local attempt=1
     
     while [[ $attempt -le $max_attempts ]]; do
-        info "Homebrew güncelleme denemesi $attempt/$max_attempts"
+        info "Homebrew update attempt $attempt/$max_attempts"
         
-        # HOMEBREW_NO_AUTO_UPDATE=1 kullanarak otomatik güncellemeyi devre dışı bırak
+        # Use HOMEBREW_NO_AUTO_UPDATE=1 to disable automatic updates
         if HOMEBREW_NO_AUTO_UPDATE=1 brew update --quiet; then
-            log "Homebrew güncellendi ✓"
+            log "Homebrew updated ✓"
             return 0
         else
             if [[ $attempt -eq $max_attempts ]]; then
-                warning "Homebrew güncellemesi başarısız!"
-                info "Alternatif yöntem deneniyor..."
+                warning "Homebrew update failed!"
+                info "Trying alternative method..."
                 
-                # Homebrew cache'i temizle
+                # Clean Homebrew cache
                 brew cleanup --prune=all
                 rm -rf "$(brew --cache)"
                 
-                # Formulae reposu manuel güncelle
-                info "Manuel repo güncelleme deneniyor..."
+                # Manual repo update
+                info "Trying manual repo update..."
                 if command -v git &> /dev/null; then
                     brew_repo_path=$(brew --repository)
                     if [[ -d "$brew_repo_path/.git" ]]; then
                         cd "$brew_repo_path" && git fetch --all && git reset --hard origin/master
-                        log "Manuel güncelleme tamamlandı ✓"
+                        log "Manual update completed ✓"
                         return 0
                     fi
                 fi
                 
-                warning "Güncelleeme atlanıyor, kuruluma devam ediliyor..."
+                warning "Skipping update, continuing with installation..."
                 return 0
             fi
-            warning "Güncelleme başarısız, 10 saniye sonra tekrar denenecek..."
+            warning "Update failed, retrying in 10 seconds..."
             sleep 10
             ((attempt++))
         fi
     done
 }
 
-# Cask uygulamalarını kur
+# Install cask applications
 install_cask_apps() {
     local apps=("asana" "slack" "pritunl" "google-chrome")
     
-    log "Cask uygulamaları kuruluyor..."
+    log "Installing cask applications..."
     
-    # Cask tap'ını kontrol et
-    info "Homebrew Cask kontrolü yapılıyor..."
+    # Check cask tap
+    info "Checking Homebrew Cask..."
     if ! brew tap | grep -q "homebrew/cask"; then
-        info "Homebrew Cask tap'ı ekleniyor..."
-        brew tap homebrew/cask || warning "Cask tap eklenemedi"
+        info "Adding Homebrew Cask tap..."
+        brew tap homebrew/cask || warning "Could not add cask tap"
     fi
     
     for app in "${apps[@]}"; do
-        info "Kuruluyor: $app"
+        info "Installing: $app"
         
-        # Uygulama zaten kurulu mu kontrol et
+        # Check if app is already installed
         if brew list --cask 2>/dev/null | grep -q "^${app}$"; then
-            warning "$app zaten kurulu, atlanıyor..."
+            warning "$app is already installed, skipping..."
             continue
         fi
         
-        # Uygulamayı kur (retry mekanizması ile)
+        # Install app (with retry mechanism)
         local max_attempts=3
         local attempt=1
         
         while [[ $attempt -le $max_attempts ]]; do
-            info "$app kurulum denemesi $attempt/$max_attempts"
+            info "$app installation attempt $attempt/$max_attempts"
             
-            # Otomatik güncellemeyi devre dışı bırakarak kur
+            # Install with disabled auto-update
             if HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask "$app" --no-quarantine 2>/dev/null; then
-                log "$app başarıyla kuruldu ✓"
+                log "$app successfully installed ✓"
                 break
             else
                 if [[ $attempt -eq $max_attempts ]]; then
-                    error "$app kurulumunda hata oluştu! (Tüm denemeler başarısız)"
-                    warning "Bu uygulama manuel olarak kurulabilir: brew install --cask $app"
+                    error "$app installation failed! (All attempts failed)"
+                    warning "This app can be installed manually: brew install --cask $app"
                     continue 2
                 fi
-                warning "$app kurulumu başarısız, 10 saniye sonra tekrar denenecek..."
+                warning "$app installation failed, retrying in 10 seconds..."
                 
-                # Cache temizle
+                # Clean cache
                 brew cleanup
                 sleep 10
                 ((attempt++))
@@ -258,49 +220,49 @@ install_cask_apps() {
     done
 }
 
-# Kurulum sonrası temizlik
+# Post-installation cleanup
 cleanup() {
-    log "Kurulum sonrası temizlik yapılıyor..."
+    log "Performing post-installation cleanup..."
     brew cleanup
-    log "Temizlik tamamlandı ✓"
+    log "Cleanup completed ✓"
 }
 
-# Kurulu uygulamaları listele
+# List installed apps
 list_installed_apps() {
-    info "Kurulu cask uygulamaları:"
+    info "Installed cask applications:"
     echo ""
-    brew list --cask | grep -E "(asana|slack|pritunl|google-chrome)" || warning "Belirtilen uygulamalardan hiçbiri kurulu değil"
+    brew list --cask | grep -E "(asana|slack|pritunl|google-chrome)" || warning "None of the specified apps are installed"
     echo ""
 }
 
-# Ana fonksiyon
+# Main function
 main() {
-    log "Kurulum başlatılıyor..."
+    log "Starting installation..."
     echo ""
     
-    # Sistem bilgisi
-    info "Sistem: $(sw_vers -productName) $(sw_vers -productVersion)"
-    info "Mimari: $(uname -m)"
+    # System information
+    info "System: $(sw_vers -productName) $(sw_vers -productVersion)"
+    info "Architecture: $(uname -m)"
     echo ""
     
-    # Kullanıcıdan onay al
-    echo -e "${YELLOW}Bu betik aşağıdaki uygulamaları kuracak:"
-    echo "• Asana (Proje yönetimi)"
-    echo "• Slack (İletişim)"
-    echo "• Pritunl (VPN istemcisi)"
-    echo "• Google Chrome (Web tarayıcısı)"
+    # Get user confirmation
+    echo -e "${YELLOW}This script will install the following applications:"
+    echo "• Asana (Project management)"
+    echo "• Slack (Communication)"
+    echo "• Pritunl (VPN client)"
+    echo "• Google Chrome (Web browser)"
     echo ""
-    read -p "Devam etmek istiyor musunuz? (y/N): " -n 1 -r
+    read -p "Do you want to continue? (y/N): " -n 1 -r
     echo ""
     
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        info "Kurulum iptal edildi."
+        info "Installation cancelled."
         exit 0
     fi
     
     echo ""
     
-    # Kurulum adımları
+    # Installation steps
     check_connectivity
     check_homebrew
     check_homebrew_health
@@ -309,16 +271,16 @@ main() {
     cleanup
     
     echo ""
-    log "Kurulum tamamlandı! 🎉"
+    log "Installation completed! 🎉"
     echo ""
     
     list_installed_apps
     
-    info "Uygulamalar Launchpad'de veya Applications klasöründe bulunabilir."
-    info "Bazı uygulamalar ilk açılışta ek izinler isteyebilir."
+    info "Applications can be found in Launchpad or Applications folder."
+    info "Some apps may request additional permissions on first launch."
 }
 
-# Betik çalıştırılıyor mu kontrol et
+# Check if script is being executed
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
