@@ -1,33 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "🔍 Checking for Homebrew..."
-if ! command -v brew >/dev/null 2>&1; then
-    echo "📦 Homebrew is not installed. Installing now..."
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    # Homebrew'ü mevcut shell'e ekle (Apple Silicon için; Intel'de /usr/local kullanılır)
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-else
-    echo "✅ Homebrew is already installed."
+# 1. Root kontrolü
+if [ "$EUID" -eq 0 ]; then
+  echo "❌ Lütfen bu betiği root olarak değil, normal kullanıcı olarak çalıştırın!" >&2
+  exit 1
 fi
 
-# Burada cask adlarını 'brew search <isim>' ile kontrol edin:
+# 2. Homebrew kurulumu
+if ! command -v brew >/dev/null 2>&1; then
+  echo "📦 Homebrew yüklü değil. Yükleniyor..."
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"  # :contentReference[oaicite:0]{index=0}
+  # Apple Silicon vs Intel tespiti ve PATH güncellemesi
+  if [[ -d "/opt/homebrew/bin" ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  else
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+else
+  echo "✅ Homebrew zaten kurulu."
+fi
+
+# 3. Yüklenecek cask listesi
 apps=(
-    slack
-    google-chrome
-    pritunl-client   # CLI/GUI cask adı
-    asana
-    microsoft-office
+  asana           # :contentReference[oaicite:1]{index=1}
+  slack           # :contentReference[oaicite:2]{index=2}
+  pritunl         # :contentReference[oaicite:3]{index=3}
+  google-chrome   # :contentReference[oaicite:4]{index=4}
 )
 
-echo "🚀 Installing applications..."
+# 4. Uygulamaların kurulumu
+echo "🚀 Uygulamalar yükleniyor..."
 for app in "${apps[@]}"; do
-    if brew list --cask "$app" >/dev/null 2>&1; then
-        echo "✅ $app is already installed."
-    else
-        echo "➤ Installing: $app"
-        brew install --cask "$app"
-    fi
+  if brew list --cask "$app" >/dev/null 2>&1; then
+    echo "✅ $app zaten yüklü."
+  else
+    echo "➤ $app kuruluyor..."
+    brew install --cask "$app"
+  fi
 done
 
-echo "🎉 All applications have been installed successfully."
+echo "🎉 Tüm uygulamalar başarıyla yüklendi."
