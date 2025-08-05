@@ -269,7 +269,7 @@ cleanup() {
 list_installed_apps() {
     info "Kurulu cask uygulamaları:"
     echo ""
-    brew list --cask | grep -E "(asana|slack|pritunl|google-chrome)" || warning "Belirtilen uygulamalardan hiçbiri kurulu değil"
+    brew list --cask | grep -E "(asana|slack|pritunl|google-chrome|microsoft-office)" || warning "Belirtilen uygulamalardan hiçbiri kurulu değil"
     echo ""
 }
 
@@ -289,6 +289,7 @@ main() {
     echo "• Slack (İletişim)"
     echo "• Pritunl (VPN istemcisi)"
     echo "• Google Chrome (Web tarayıcısı)"
+    echo "• Microsoft Office"
     echo ""
     read -p "Devam etmek istiyor musunuz? (y/N): " -n 1 -r
     echo ""
