@@ -231,7 +231,7 @@ cleanup() {
 list_installed_apps() {
     info "Installed cask applications:"
     echo ""
-    brew list --cask | grep -E "(asana|slack|pritunl|google-chrome)" || warning "None of the specified apps are installed"
+    brew list --cask | grep -E "(asana|slack|pritunl|google-chrome|microsoft-office)" || warning "None of the specified apps are installed"
     echo ""
 }
 
@@ -250,7 +250,8 @@ main() {
     echo "• Asana (Project management)"
     echo "• Slack (Communication)"
     echo "• Pritunl (VPN client)"
-    echo "• Google Chrome (Web browser)"
+    echo "• Google Chrome (Web browser
+    echo "• Microsoft Office"
     echo ""
     read -p "Do you want to continue? (y/N): " -n 1 -r
     echo ""
